@@ -75,6 +75,36 @@ por_time = estimativas_raw %>%
 
 ## Qual a relação entre as estimativas e horas reais tomadas na empresa como um todo e em diferentes categorias de tarefa?
 
+```{r}
+estimativas %>% 
+    ggplot(aes(x = HoursEstimate, y = HoursActual)) + 
+    geom_point(alpha = 0.3) +
+    labs(
+        x = "Horas Estimadas",
+        y = "Hora Reais" )
+```
 
+
+Utilizando log10
+```{r}
+estimativas %>% 
+    ggplot(aes(x = HoursEstimate, y = HoursActual)) + 
+    geom_point(alpha = 0.3) +
+    scale_x_log10() +
+    labs(
+        x = "Horas Estimadas",
+        y = "Hora Reais" )
+```
+
+```{r}
+estimativas %>% 
+    ggplot(aes(x = HoursEstimate, y = HoursActual)) + 
+    geom_point(alpha = 0.3) +
+    scale_x_log10() +
+    facet_wrap(~Category) +
+    labs(
+        x = "Horas Estimadas",
+        y = "Hora Reais" )
+```
 ## Equipes com mais desenvolvedores produzem estimativas com mais ou menos erro que equipes menores? 
 
