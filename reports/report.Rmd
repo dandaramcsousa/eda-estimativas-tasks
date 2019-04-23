@@ -12,11 +12,6 @@ library(here)
 source(here::here("code/lib.R"))
 theme_set(theme_bw())
 
-knitr::opts_chunk$set(tidy = FALSE,
-                      fig.width = 6,
-                      fig.height = 5,
-                      echo = FALSE)
-
 ```
 
 ```{r read}
@@ -33,7 +28,7 @@ estimativas_raw %>%
     skimr::skim()
 ```
 
-### 1 estimativa por task
+#### 1 estimativa por task
 
 Para nossa análise, usaremos uma estimativa por task. Caso haja mais de uma usaremos a média das estimativas_raw:
 
@@ -49,7 +44,7 @@ estimativas <- estimativas_raw %>%
 ```
 
 
-### Dados por time
+#### Dados por time
 
 ```{r}
 por_time <- estimativas_raw %>% 
@@ -65,7 +60,7 @@ por_time <- estimativas_raw %>%
 
 Com nossos dados organizados, esse é o momento para explorar e adquirir informações.
 
-### Qual a relação entre as estimativas e horas reais tomadas na empresa como um todo e em diferentes categorias de tarefa?
+#### Qual a relação entre as estimativas e horas reais tomadas na empresa como um todo e em diferentes categorias de tarefa?
 
 ```{r}
 estimativas %>%
@@ -96,9 +91,9 @@ Por último, vamos ver estatisticamente a correlação entre as variáveis. Pear
 ```{r}
 estimativas %>%
     summarise(
-        pearson = cor(HoursEstimate, HoursActual, method = "pearson"),
-        spearman = cor(HoursEstimate, HoursActual, method = "spearman"),
-        kendall = cor(HoursEstimate, HoursActual, method = "kendall")
+        Pearson = cor(HoursEstimate, HoursActual, method = "pearson"),
+        Spearman = cor(HoursEstimate, HoursActual, method = "spearman"),
+        Kendall = cor(HoursEstimate, HoursActual, method = "kendall")
     ) 
 ```
 
@@ -108,9 +103,9 @@ Agora, seguindo a mesma ideia para uma análise por categoria de task, vamos ver
 estimativas %>%
     group_by(Category) %>%
     summarise(
-        pearson = cor(HoursEstimate, HoursActual, method = "pearson"),
-        spearman = cor(HoursEstimate, HoursActual, method = "spearman"),
-        kendall = cor(HoursEstimate, HoursActual, method = "kendall")
+        Pearson = cor(HoursEstimate, HoursActual, method = "pearson"),
+        Spearman = cor(HoursEstimate, HoursActual, method = "spearman"),
+        Kendall = cor(HoursEstimate, HoursActual, method = "kendall")
     ) 
 ```
 
@@ -142,16 +137,42 @@ estimativas %>%
         y = "Hora Reais" )
 ```
 
-Novamente, o padrão se repete. Vemos uma relação que linearmente não parece ser fácil de identificar mas quando mudamos para escala logarítima conseguimos enxergar uma relação positiva.
+Novamente, o padrão se repete. Vemos uma relação que linearmente não parece ser fácil de identificar mas quando mudamos para escala logarítima conseguimos enxergar uma relação positiva e crescente.
 
-## Equipes com mais desenvolvedores produzem estimativas com mais ou menos erro que equipes menores? 
+#### Equipes com mais desenvolvedores produzem estimativas com mais ou menos erro que equipes menores? 
+
+Primeiro, olhando a correlação entre as variáveis temos que, diferente das estimativas a correlação é baixa ou até negativa no caso de Pearson. 
 
 ```{r}
 por_time %>%
     summarise(
-        pearson = cor(erro_medio_abs, devs, method = "pearson"),
-        spearman = cor(erro_medio_abs, devs, method = "spearman"),
-        kendall = cor(erro_medio_abs, devs, method = "kendall")
+        Pearson = cor(erro_medio_abs, devs, method = "pearson"),
+        Spearman = cor(erro_medio_abs, devs, method = "spearman"),
+        Kendall = cor(erro_medio_abs, devs, method = "kendall")
     ) 
 ```
+
+```{r}
+por_time %>% 
+    ggplot(aes(erro_medio_abs, devs)) +
+    geom_point(alpha = .3) +
+    geom_rug(alpha = .7, color = "#33334d", sides = "l") +
+    labs(
+        x = "Erro Médio",
+        y = "Desenvolvedores" )
+```
+
+```{r}
+por_time %>% 
+    ggplot(aes(erro_medio_abs, devs)) +
+    geom_point(alpha = .3) +
+    geom_rug(alpha = .7, color = "#33334d", sides = "l") +
+    scale_x_continuous(trans = "log2") +
+    scale_y_continuous(trans = "log2") +
+    labs(
+        x = "Erro Médio",
+        y = "Desenvolvedores" )
+```
+
+Realmente, não parece há uma correlação entre as variáveis. Visualmente a distribuição pode-se dizer que não segue um padrão nem quando colocada na escala logarítima.
 
