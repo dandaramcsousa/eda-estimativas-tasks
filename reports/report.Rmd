@@ -1,0 +1,157 @@
+---
+title: "Um relatório em cima de EDA SIP "
+author: "Dandara Sousa"
+date: "22 de abril de 2019"
+output: html_document
+---
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(here)
+source(here::here("code/lib.R"))
+theme_set(theme_bw())
+
+knitr::opts_chunk$set(tidy = FALSE,
+                      fig.width = 6,
+                      fig.height = 5,
+                      echo = FALSE)
+
+```
+
+```{r read}
+estimativas_raw = read_projectdata()
+```
+
+## Conhecendo os dados
+
+Utilizaremos neste relatório dados de estimativa e realidade de horas para tasks em times. Focaremos em horas estimadas x horas realizadas e erros por tamanho de equipe. Então, dando uma olhada em como os dados se comportam vemos 20 projetos e 10266 tarefas para as quais há, em alguns casos, mais de uma estimativas já que no total há 12299 tasks. Não há valores faltando e a maior diferença entre horas estimadas e horas realizadas é no desvio padrão, 68.72 e 28.84 respectivamente.
+
+```{r}
+estimativas_raw %>% 
+    select(ProjectCode, TaskNumber, HoursEstimate, HoursActual) %>% 
+    skimr::skim()
+```
+
+### 1 estimativa por task
+
+Para nossa análise, usaremos uma estimativa por task. Caso haja mais de uma usaremos a média das estimativas_raw:
+
+```{r}
+estimativas <- estimativas_raw %>%
+    group_by(ProjectCode, TaskNumber, Category, Priority, Summary) %>%
+    summarise(
+        HoursEstimate = mean(HoursEstimate),
+        HoursActual = mean(HoursActual),
+        DeveloperPerformance = mean(DeveloperPerformance)
+    ) %>%
+    ungroup()
+```
+
+
+### Dados por time
+
+```{r}
+por_time <- estimativas_raw %>% 
+    group_by(ProjectCode) %>% 
+    summarise(devs = NROW(unique(DeveloperID)), 
+              erro_medio_abs = mean(abs(HoursEstimate - HoursActual)), 
+              estimativas = n())
+```
+
+******
+
+## Questionamentos acerca dos dados
+
+Com nossos dados organizados, esse é o momento para explorar e adquirir informações.
+
+### Qual a relação entre as estimativas e horas reais tomadas na empresa como um todo e em diferentes categorias de tarefa?
+
+```{r}
+estimativas %>%
+    ggplot(aes(HoursEstimate, HoursActual))+
+    geom_point(alpha = .3) +
+    geom_rug(alpha = .7, color = "#33334d", sides = "l") +
+    labs(
+        x = "Horas Estimadas",
+        y = "Hora Reais" )
+```
+
+Para uma primeira visualização geral temos um gráfico de pontos. É possível perceber que os valores em sua maioria são baixos e alguns extremos são localizados. Para tentar encontrar uma relação entre os dados vamos colocar x e y em log2.
+
+```{r}
+estimativas %>% 
+    ggplot(aes(HoursEstimate, HoursActual)) + 
+    geom_point(alpha = .3) +
+    geom_rug(alpha = .7, color = "#33334d", sides = "l") +
+    scale_x_continuous(trans = "log2") +
+    scale_y_continuous(trans = "log2") +
+    labs(
+        x = "Horas Estimadas",
+        y = "Hora Reais" )
+```
+
+Por último, vamos ver estatisticamente a correlação entre as variáveis. Pearson, um método bom para observar correlações lineares não aponta uma correlação forte neste caso. Isso é esperado uma vez que ao lidarmos com escala linear não conseguimos extrair muito dos dados. A correlação de Spearman e Kendall lindam com rankings, para Spearman é mais forte do que em Kendall.
+
+```{r}
+estimativas %>%
+    summarise(
+        pearson = cor(HoursEstimate, HoursActual, method = "pearson"),
+        spearman = cor(HoursEstimate, HoursActual, method = "spearman"),
+        kendall = cor(HoursEstimate, HoursActual, method = "kendall")
+    ) 
+```
+
+Agora, seguindo a mesma ideia para uma análise por categoria de task, vamos ver a correlação e visualizar a relação.
+
+```{r}
+estimativas %>%
+    group_by(Category) %>%
+    summarise(
+        pearson = cor(HoursEstimate, HoursActual, method = "pearson"),
+        spearman = cor(HoursEstimate, HoursActual, method = "spearman"),
+        kendall = cor(HoursEstimate, HoursActual, method = "kendall")
+    ) 
+```
+
+Vemos que de certa forma o padrão anterior se repete para as correlações. Pearson sendo fraca e Spearman a mais forte. Veremos então se visualmente o padrão se repete.
+
+```{r}
+estimativas %>%
+    group_by(Category) %>%
+    ggplot(aes(HoursEstimate, HoursActual))+
+    geom_point(alpha = .3) +
+    geom_rug(alpha = .7, color = "#33334d", sides = "l") +
+    facet_wrap(~Category) +
+    labs(
+        x = "Horas Estimadas",
+        y = "Hora Reais" )
+```
+
+```{r}
+estimativas %>% 
+    group_by(Category) %>%
+    ggplot(aes(HoursEstimate, HoursActual)) + 
+    geom_point(alpha = .3) +
+    geom_rug(alpha = .7, color = "#33334d", sides = "l") +
+    scale_x_continuous(trans = "log2") +
+    scale_y_continuous(trans = "log2") +
+    facet_wrap(~Category) +
+    labs(
+        x = "Horas Estimadas",
+        y = "Hora Reais" )
+```
+
+Novamente, o padrão se repete. Vemos uma relação que linearmente não parece ser fácil de identificar mas quando mudamos para escala logarítima conseguimos enxergar uma relação positiva.
+
+## Equipes com mais desenvolvedores produzem estimativas com mais ou menos erro que equipes menores? 
+
+```{r}
+por_time %>%
+    summarise(
+        pearson = cor(erro_medio_abs, devs, method = "pearson"),
+        spearman = cor(erro_medio_abs, devs, method = "spearman"),
+        kendall = cor(erro_medio_abs, devs, method = "kendall")
+    ) 
+```
+
